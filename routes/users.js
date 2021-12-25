@@ -8,6 +8,8 @@ module.exports = (app) => {
 	
 	app.post('/verify-email', userController.verifyEmail);
 	
+	app.post('/forgotpassword', userController.forgotPassword);
+	
 	app.post('/do-login', userController.doLogin);
 	
 	app.post('/get-user', userController.getUserData);

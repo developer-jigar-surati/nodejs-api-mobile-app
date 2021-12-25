@@ -203,6 +203,16 @@ const welcome = (content) => `<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v
                                                    </table>
                                                 </td>
                                              </tr>
+                                             <!-- <tr>
+                                                <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                                                   <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:16px;font-weight:400;line-height:24px;text-align:left;color:#637381;"> <span style="color: #ff0000">This link is valid for only 15 mins.</span> </div>
+                                                </td>
+                                             </tr> -->
+                                             <tr>
+                                                <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                                                   <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:16px;font-weight:400;line-height:24px;text-align:left;color:#637381;"> or copy and paste the link into your browser <a href="${content.link}">${content.link}</a> </div>
+                                                </td>
+                                             </tr>
                                           </tbody>
                                        </table>
                                     </div>

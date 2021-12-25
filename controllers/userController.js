@@ -55,26 +55,26 @@ exports.doRegister = async (req, res) => {
 
             const emailData = {
                 name: req.body.first_name + ' ' + req.body.last_name,
-                link: process.env.FRONT_URL + 'verify/email?token=' + token
+                link: process.env.FRONT_URL + 'verify/email/' + token
             }
             const html = welcomEmail(emailData);
 
             emailService.sendEmail(req.body.email_id, `Welcome to ${process.env.PROJECT_NAME}`, html, (err1, mailres) => {
                 if (err1) {
-                    console.log("Something went wrong while sending mail.", err1);
+                    console.log("Something went wrong while sending verification mail.", err1);
 
                     user.deleted_at = moment().tz(process.env.default_timezone).format();
                     user.save();
 
-                    let responseJson = { "status": "failed", "message": "Something went wrong while sending mail.", "data": [] };
+                    let responseJson = { "status": "failed", "message": "Something went wrong while sending verification mail.", "data": [] };
                     let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
                     res.send(encryptData.toString());
                     return;
                 } else {
                     console.log(mailres);
-                    console.log("Registration Successfully Done, doRegister end");
+                    console.log("Verification link has been sent to your email account please verifiy your email, doRegister end");
 
-                    let responseJson = { "status": "success", "message": "Registration Successfully Done.", "data": [] };
+                    let responseJson = { "status": "success", "message": "Verification link has been sent to your email account please verifiy your email.", "data": [] };
                     let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
                     res.send(encryptData.toString());
                     return;
@@ -113,6 +113,7 @@ exports.verifyEmail = async (req, res) => {
 
         if (typeof token !== 'undefined' && token !== null && token !== '') {
             const users = await User.findOne({ verify_token: token });
+            console.log('users', users);
             if (users === null) {
                 console.log("Invalid token please try again, verifyEmail end");
 
@@ -121,16 +122,24 @@ exports.verifyEmail = async (req, res) => {
                 res.send(encryptData.toString());
                 return;
             } else {
-                users.verified_at = moment().tz(process.env.default_timezone).format();
-                users.is_verified = true;
-                users.save();
+                if (!users.is_verified) {
+                    users.verified_at = moment().tz(process.env.default_timezone).format();
+                    users.is_verified = true;
+                    users.save();
 
-                console.log("verifyEmail end");
+                    console.log("verifyEmail end");
 
-                let responseJson = { "status": "success", "message": "Thank you for verifying your email address! Congratulations, you're now a part of <strong>" + process.env.PROJECT_NAME + "!</strong> Enjoy!", "data": [] };
-                let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
-                res.send(encryptData.toString());
-                return;
+                    let responseJson = { "status": "success", "message": "Thank you for verifying your email address! Congratulations, you're now a part of <strong>" + process.env.PROJECT_NAME + "!</strong> Enjoy!", "data": [] };
+                    let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
+                    res.send(encryptData.toString());
+                    return;
+                } else {
+                    console.log("email alredy verified verifyEmail end");
+                    let responseJson = { "status": "success", "message": "Your Email address is already verified. <br /> Thank you.", "data": [] };
+                    let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
+                    res.send(encryptData.toString());
+                    return;
+                }
             }
         } else {
             console.log("Token is requied, verifyEmail end");
@@ -180,7 +189,7 @@ exports.doLogin = async (req, res) => {
             return;
         }
 
-        const users = await User.findOne({ email_id: req.body.email_id, password: req.body.password, deleted_at: null });
+        const users = await User.findOne({ email_id: req.body.email_id, password: md5(req.body.password), deleted_at: null });
 
         if (users === null) {
             console.log("Invalid Credentials, doLogin end");
@@ -230,12 +239,12 @@ exports.doLogin = async (req, res) => {
 exports.getUserData = async (req, res) => {
     try {
         console.log("getUserData start");
-        
+
         var decrypted = CryptoJS.TripleDES.decrypt(req.body.email_id, process.env.ENCRYPTION_SECRET_KEY);
         var resData = decrypted.toString(CryptoJS.enc.Utf8);
-        
+
         console.log("decrypted Email", resData);
-        
+
         const userData = await User.findOne({ email_id: resData, deleted_at: null, is_active: true });
         if (userData) {
             let newUserData = getUserData(userData);
@@ -255,6 +264,71 @@ exports.getUserData = async (req, res) => {
         console.log("getUserData end with error", error.message);
 
         let responseJson = { "status": "failed", "message": "Something went wrong while get user data", "data": error.message };
+        let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
+        res.send(encryptData.toString());
+        return;
+    }
+}
+
+exports.forgotPassword = async (req, res) => {
+    try {
+        console.log("forgotPassword start");
+
+        let email_id = req.body.email_id;
+
+        if (typeof email_id !== 'undefined' && email_id !== null && email_id !== '') {
+            const users = await User.findOne({ email_id: email_id });
+            console.log('users', users);
+            if (users === null) {
+                console.log("Invalid token please try again, forgotPassword end");
+
+                let responseJson = { "status": "failed", "message": "Invalid Email address please try again!", "data": [] };
+                let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
+                res.send(encryptData.toString());
+                return;
+            } else {
+                const token = crypto.randomBytes(16).toString('hex');
+
+                users.forget_token = token;
+                const savedUser = await users.save();
+
+                const emailData = {
+                    name: req.body.first_name + ' ' + req.body.last_name,
+                    link: process.env.FRONT_URL + 'resetpassword/' + token
+                }
+                const html = welcomEmail(emailData);
+    
+                emailService.sendEmail(req.body.email_id, `Reset Password - ${process.env.PROJECT_NAME}`, html, (err1, mailres) => {
+                    if (err1) {
+                        console.log("Something went wrong while sending forgotPassword mail.", err1);
+    
+                        let responseJson = { "status": "failed", "message": "Something went wrong while sending reset password mail.", "data": [] };
+                        let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
+                        res.send(encryptData.toString());
+                        return;
+                    } else {
+                        console.log(mailres);
+                        console.log("Reset Password link has been sent to your email account, forgotPassword end");
+    
+                        let responseJson = { "status": "success", "message": "Reset Password link has been sent to your email account.", "data": [] };
+                        let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
+                        res.send(encryptData.toString());
+                        return;
+                    }
+                });
+            }
+        } else {
+            console.log("Email is requied, forgotPassword end");
+
+            let responseJson = { "status": "failed", "message": "Email is requied!", "data": [] };
+            let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
+            res.send(encryptData.toString());
+            return;
+        }
+    } catch (error) {
+        console.log("forgotPassword end with error", error.message);
+
+        let responseJson = { "status": "failed", "message": "Something went wrong while Forgot Password!", "data": error.message };
         let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
         res.send(encryptData.toString());
         return;

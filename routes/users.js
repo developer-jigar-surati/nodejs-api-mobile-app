@@ -10,6 +10,8 @@ module.exports = (app) => {
 	
 	app.post('/forgotpassword', userController.forgotPassword);
 	
+	app.post('/resetpassword', userController.resetPassword);
+	
 	app.post('/do-login', userController.doLogin);
 	
 	app.post('/get-user', userController.getUserData);

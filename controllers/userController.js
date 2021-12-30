@@ -339,6 +339,30 @@ exports.resetPassword = async (req, res) => {
         console.log("resetPassword start");
 
         let token = req.body.token;
+        const input_arr = {
+            password: req.body.new_password,
+            password: req.body.confirm_password,
+        };
+
+        const user = new User(input_arr);
+        const errors = [];
+        const err = user.validateSync();
+        if (typeof err !== 'undefined') {
+            for (var userVal in input_arr) {
+                var errMessage = (typeof (err.errors[userVal]) !== 'undefined') ? err.errors[userVal].message : '';
+                if (errMessage != '') {
+                    errors.push(errMessage);
+                }
+            }
+        }
+        if (errors.length > 0) {
+            console.log("Required field missing, resetPassword end");
+
+            let responseJson = { "status": "validationfailed", "message": "Required field missing!", "data": errors };
+            let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);
+            res.send(encryptData.toString());
+            return;
+        }
 
         if (typeof token !== 'undefined' && token !== null && token !== '') {
             if (req.body.new_password === '' || req.body.new_password === null) {
@@ -377,7 +401,7 @@ exports.resetPassword = async (req, res) => {
                 users.updated_at = moment().tz(process.env.default_timezone).format();
                 users.save();
 
-                console.log("resetPassword end");
+                console.log("Password reset successfully, resetPassword end");
 
                 let responseJson = { "status": "success", "message": "Password reset successfully.", "data": [] };
                 let encryptData = CryptoJS.TripleDES.encrypt(JSON.stringify(responseJson), process.env.ENCRYPTION_SECRET_KEY);

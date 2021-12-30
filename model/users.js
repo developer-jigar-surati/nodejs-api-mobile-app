@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
             message: props => `${props.value} is not a valid email!`
         },
     },
-    password: { type: String, required: [true, 'Password is requied!'] },
+    password: { type: String, required: [true, 'Password is requied!'], minLength: [8, 'Minimum 8 character is requied.'], }, // maxLength: [25, 'Maximum 25 character allow.'], 
     user_type: { type: String, default: 'user' },
     date_of_birth: { type: String, default: null, },
     gender: { type: String, default: null },
